@@ -94,6 +94,7 @@ defmodule Mix.Tasks.GitOps.Release do
     config_types = Config.types()
     allowed_tags = Config.allowed_tags()
     allow_untagged? = Config.allow_untagged?()
+    commit_filter = Config.commit_filter()
     from_rc? = Version.parse!(current_version).pre != []
 
     {commit_messages_for_version, commit_messages_for_changelog, commit_authors, hashes} =
@@ -116,6 +117,7 @@ defmodule Mix.Tasks.GitOps.Release do
         config_types,
         allowed_tags,
         allow_untagged?,
+        commit_filter,
         log_for_version?
       )
 
@@ -127,6 +129,7 @@ defmodule Mix.Tasks.GitOps.Release do
         config_types,
         allowed_tags,
         allow_untagged?,
+        commit_filter,
         false
       )
       |> enrich_commits_with_github_information(github_info)
@@ -186,7 +189,6 @@ defmodule Mix.Tasks.GitOps.Release do
   defp get_commit_messages(repo, prefix, tags, _from_rc?, opts) do
     if opts[:initial] do
       commit_info = Git.get_commit_info(repo, :all)
-
       commits = [
         Git.initial_commit_message() | Enum.map(commit_info, & &1.message)
       ]
@@ -348,19 +350,20 @@ defmodule Mix.Tasks.GitOps.Release do
     end
   end
 
-  defp parse_commits(messages, authors, hashes, config_types, allowed_tags, allow_untagged?, log?) do
+  defp parse_commits(messages, authors, hashes, config_types, allowed_tags, allow_untagged?, commit_filter, log?) do
     [messages, authors, hashes]
     |> Enum.zip()
     |> Enum.flat_map(fn {message, author, hash} ->
-      parse_commit(message, author, hash, config_types, allowed_tags, allow_untagged?, log?)
+      parse_commit(message, author, hash, config_types, allowed_tags, allow_untagged?, commit_filter, log?)
     end)
   end
 
-  defp parse_commit(text, author, hash, config_types, allowed_tags, allow_untagged?, log?) do
+  defp parse_commit(text, author, hash, config_types, allowed_tags, allow_untagged?, commit_filter, log?) do
     case Commit.parse(%{text: text, author_info: author, hash: hash}) do
       {:ok, commits} ->
         commits
         |> commits_with_allowed_tags(allowed_tags, allow_untagged?)
+        |> commits_with_commit_filter(commit_filter)
         |> commits_with_type(config_types, text, log?)
 
       _ ->
@@ -421,6 +424,11 @@ defmodule Mix.Tasks.GitOps.Release do
           []
         end
     end
+  end
+
+  defp commits_with_commit_filter(commits, nil), do: commits
+  defp commits_with_commit_filter(commits, filter) do
+    commits |> Enum.filter(filter)
   end
 
   defp commits_with_type(commits, config_types, text, log?) do

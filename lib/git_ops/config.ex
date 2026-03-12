@@ -115,6 +115,7 @@ defmodule GitOps.Config do
 
   def allow_untagged?,
     do: :git_ops |> Application.get_env(:tags, []) |> Keyword.get(:allow_untagged?, true)
+  def commit_filter, do: :git_ops |> Application.get_env(:commit_filter)
 
   def prefix, do: Application.get_env(:git_ops, :version_tag_prefix) || ""
 
