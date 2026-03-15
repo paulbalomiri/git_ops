@@ -172,12 +172,12 @@ defmodule Mix.Tasks.GitOps.Release do
       opts[:dry_run] ->
         :ok
 
-      upgrading_from_rc? ->
-        confirm_rc_upgrade(repo, changelog_path, prefixed_new_version, changelog_changes)
-        :ok
-
       opts[:yes] ->
         tag(repo, changelog_path, prefixed_new_version, changelog_changes)
+        :ok
+
+      upgrading_from_rc? ->
+        confirm_rc_upgrade(repo, changelog_path, prefixed_new_version, changelog_changes)
         :ok
 
       true ->
